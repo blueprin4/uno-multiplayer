@@ -94,9 +94,9 @@ addEventListener('DOMContentLoaded',()=>{
             });
             $("#gameIdText").text("creating the game....");
             socket.on("createdGameId",(data)=>{
-                    if(data.playerId != playerId || gameId != undefined)return;
-                    gameId = data.gameId;
-                    $("#gameIdText").text(data.gameId);
+                    if(roomId.playerId != playerId || gameId != undefined)return;
+                    gameId = roomId.gameId;
+                    $("#gameIdText").text(roomId.gameId);
                     playerIndex = 0;
                     
     
@@ -220,10 +220,10 @@ addEventListener('DOMContentLoaded',()=>{
                     playerId:playerId
                 });
                 socket.on("joinedGame",(data)=>{
-                    if(data.playerId != playerId)return;
-                    console.log("joined game with id "+data.gameId);
+                    if(roomId.playerId != playerId)return;
+                    console.log("joined game with id "+roomId.gameId);
                     showQueue = true;
-                    playerIndex = data.index;
+                    playerIndex = roomId.index;
                     let showGameId = document.createElement('a');
                     showGameId.className = "btn-floating btn-large waves-effect waves-light teal"
                     showGameId.innerText = "gameId";
@@ -283,14 +283,14 @@ addEventListener('DOMContentLoaded',()=>{
         })
         
         socket.on("gameCreated",(data)=>{
-            if(gameId != data.gameId) return;
+            if(gameId != roomId.gameId) return;
             swal.close();
             document.querySelector("#queue").innerHTML = "";
             document.querySelector("#queue").className= "";
             document.querySelector("#queue").style.display = "none";
             if(document.querySelector("#startGameBtn"))document.querySelector("#startGameBtn").remove();
             players = [];
-            for(let player of data.players){
+            for(let player of roomId.players){
                 players.push({
                     name: player.name,
                     number: player.number,
@@ -334,7 +334,7 @@ addEventListener('DOMContentLoaded',()=>{
                 React.createElement(Players, {
                     players: players,
                     index:playerIndex,
-                    currentTurn:data.currentPlayerTurn
+                    currentTurn:roomId.currentPlayerTurn
                 }, null),
                 document.querySelector(".players ul")
             );
@@ -350,11 +350,11 @@ addEventListener('DOMContentLoaded',()=>{
                });
             }
             ReactDOM.render(
-                React.createElement(Board, {currentCard: {value:data.currentCard.value,color:data.currentCard.color,isSpecial:data.currentCard.isSpecial}}, null),
+                React.createElement(Board, {currentCard: {value:roomId.currentCard.value,color:roomId.currentCard.color,isSpecial:roomId.currentCard.isSpecial}}, null),
                 document.querySelector(".board")
             );
     
-            contentBG.style.backgroundColor = colorMap[data.currenColor];
+            contentBG.style.backgroundColor = colorMap[roomId.currenColor];
             let drawBtn = document.createElement("button");
             drawBtn.className = "waves-effect waves-light btn";
             drawBtn.innerText = "draw card";
@@ -381,8 +381,8 @@ addEventListener('DOMContentLoaded',()=>{
     
     
         socket.on("gameUpdated",(data)=>{
-            if(gameId != data.gameId) return;
-            if(playerIndex == data.currentPlayerTurn && !data.cardDrawn){
+            if(gameId != roomId.gameId) return;
+            if(playerIndex == roomId.currentPlayerTurn && !roomId.cardDrawn){
                 swal.fire({
                    confirmButtonColor:"#2c3e50",
                     icon: 'info',
@@ -396,9 +396,9 @@ addEventListener('DOMContentLoaded',()=>{
             ReactDOM.unmountComponentAtNode(document.querySelector(".board"));
             ReactDOM.unmountComponentAtNode(document.querySelector("#queue"));
             let animated = "";
-            if(!data.cardDrawn) animated = "animate__animated animate__bounce"
+            if(!roomId.cardDrawn) animated = "animate__animated animate__bounce"
             players = [];
-            for(let player of data.players){
+            for(let player of roomId.players){
                 players.push({
                     name: player.name,
                     number: player.number,
@@ -410,7 +410,7 @@ addEventListener('DOMContentLoaded',()=>{
                 React.createElement(Players, {
                     players: players,
                     index:playerIndex,
-                    currentTurn:data.currentPlayerTurn
+                    currentTurn:roomId.currentPlayerTurn
                 }, null),
                 document.querySelector(".players ul")
               );
@@ -427,18 +427,18 @@ addEventListener('DOMContentLoaded',()=>{
              }
               ReactDOM.render(
                 React.createElement(Board, {
-                    currentCard: {value:data.currentCard.value,color:data.currentCard.color,isSpecial:data.currentCard.isSpecial},
+                    currentCard: {value:roomId.currentCard.value,color:roomId.currentCard.color,isSpecial:roomId.currentCard.isSpecial},
                     animated:animated
                 }, null),
                 document.querySelector(".board")
               );
-              contentBG.style.backgroundColor = colorMap[data.currenColor];
+              contentBG.style.backgroundColor = colorMap[roomId.currenColor];
          
         });
     
         socket.on("getCards",(data)=>{
-            if(playerId != data.playerId) return;
-            cards = data.cards;
+            if(playerId != roomId.playerId) return;
+            cards = roomId.cards;
             //document.querySelector("#frame").innerHTML = "";
             var $owl = $('.owl-carousel');
             $owl.trigger('destroy.owl.carousel');
@@ -469,8 +469,8 @@ addEventListener('DOMContentLoaded',()=>{
             })
         });
         socket.on("queueChanged",(data)=>{
-            if(gameId != data.gameId)return;
-            players = data.players;
+            if(gameId != roomId.gameId)return;
+            players = roomId.players;
             let playersCollection  = document.querySelector("#queue");
             playersCollection.innerHTML = "";
             let i =0;
@@ -500,8 +500,8 @@ addEventListener('DOMContentLoaded',()=>{
         });
     
         socket.on("chooseColor",(data)=>{
-            if(data.gameId != gameId) return;
-            if(playerId != data.playerId)return;
+            if(roomId.gameId != gameId) return;
+            if(playerId != roomId.playerId)return;
             modalChooseColor.open();
             chooseColorBtn.addEventListener("click",()=>{
                 let color = document.querySelector("select").value;
@@ -514,7 +514,7 @@ addEventListener('DOMContentLoaded',()=>{
             })
         })
         socket.on("wrongMove",(data)=>{
-            if(data.gameId != gameId || data.playerId != playerId)return;
+            if(roomId.gameId != gameId || roomId.playerId != playerId)return;
             swal.fire({
                    confirmButtonColor:"#2c3e50",
                 icon: 'error',
@@ -525,7 +525,7 @@ addEventListener('DOMContentLoaded',()=>{
             });
         })
         socket.on("wrongTurn",(data)=>{
-            if(data.gameId != gameId || data.playerId != playerId)return;
+            if(roomId.gameId != gameId || roomId.playerId != playerId)return;
             swal.fire({
                    confirmButtonColor:"#2c3e50",
                 icon: 'error',
@@ -537,7 +537,7 @@ addEventListener('DOMContentLoaded',()=>{
         })
     
         socket.on("cannotDraw",(data)=>{
-            if(data.gameId != gameId || data.playerId != playerId)return;
+            if(roomId.gameId != gameId || roomId.playerId != playerId)return;
             swal.fire({
                    confirmButtonColor:"#2c3e50",
                 icon: 'error',
@@ -551,15 +551,15 @@ addEventListener('DOMContentLoaded',()=>{
             swal.fire({
                    confirmButtonColor:"#2c3e50",
                 icon: 'error',
-                title: data.msg,
+                title: roomId.msg,
                 timer: 500,
                 
                 showConfirmButton:false
             });
         });
         socket.on("gameEnd",(data)=>{
-            if(data.gameId != gameId)return;
-                if(data.playerId == playerId){
+            if(roomId.gameId != gameId)return;
+                if(roomId.playerId == playerId){
                     swal.fire({
                        confirmButtonColor:"#2c3e50",
                        cancelButtonColor:"#2c3e50",
@@ -595,7 +595,7 @@ addEventListener('DOMContentLoaded',()=>{
             
         });
         socket.on("uno",(data)=>{
-            if(data.gameId != gameId)return;
+            if(roomId.gameId != gameId)return;
             
                 swal.fire({
                    confirmButtonColor:"#2c3e50",
@@ -609,12 +609,12 @@ addEventListener('DOMContentLoaded',()=>{
             
         });
         socket.on("playerDiconnnected",(data)=>{
-            if(data.gameId != gameId)return;
+            if(roomId.gameId != gameId)return;
             
                 swal.fire({
                    confirmButtonColor:"#2c3e50",
                     icon: 'warning',
-                    title:"player "+data.playerName+" is diconnected",
+                    title:"player "+roomId.playerName+" is diconnected",
                     timer:1000,
                     showConfirmButton:false
     
@@ -623,7 +623,7 @@ addEventListener('DOMContentLoaded',()=>{
             
         });
         socket.on("drawTwo",(data)=>{
-            if(data.gameId != gameId)return;
+            if(roomId.gameId != gameId)return;
             
                 swal.fire({
                    confirmButtonColor:"#2c3e50",
@@ -637,7 +637,7 @@ addEventListener('DOMContentLoaded',()=>{
             
         });
         socket.on("drawFour",(data)=>{
-            if(data.gameId != gameId)return;
+            if(roomId.gameId != gameId)return;
             
                 swal.fire({
                    confirmButtonColor:"#2c3e50",
@@ -652,7 +652,7 @@ addEventListener('DOMContentLoaded',()=>{
         });
     
         socket.on("skipTurn",(data)=>{
-            if(data.gameId != gameId)return;
+            if(roomId.gameId != gameId)return;
             
                 swal.fire({
                    confirmButtonColor:"#2c3e50",
@@ -667,7 +667,7 @@ addEventListener('DOMContentLoaded',()=>{
         });
     
         socket.on("reverseTurn",(data)=>{
-            if(data.gameId != gameId)return;
+            if(roomId.gameId != gameId)return;
             
                 swal.fire({
                    confirmButtonColor:"#2c3e50",
@@ -682,16 +682,16 @@ addEventListener('DOMContentLoaded',()=>{
         });
     
         socket.on("messageRecieve",(data)=>{
-            if(data.gameId != gameId) return;
+            if(roomId.gameId != gameId) return;
             let navChat = document.querySelector('#chatBox');
             let li = document.createElement("li");
-            li.innerText = `${data.playerName}: ${data.message}`;
+            li.innerText = `${roomId.playerName}: ${roomId.message}`;
             navChat.appendChild(li);
             navChat.scrollTop = navChat.scrollHeight;
-            if(playerId != data.playerId){
+            if(playerId != roomId.playerId){
                 Swal.fire({
                     position: 'top-start',
-                    title: `${data.playerName}: ${data.message}`,
+                    title: `${roomId.playerName}: ${roomId.message}`,
                     showConfirmButton: false,
                     timer: 1000,
                     backdrop:false,
@@ -704,12 +704,12 @@ addEventListener('DOMContentLoaded',()=>{
         });
     
         socket.on("changeIndex",(data)=>{
-            if(data.gameId != gameId || data.playerId != playerId)return;
-            playerIndex = data.newIndex;
+            if(roomId.gameId != gameId || roomId.playerId != playerId)return;
+            playerIndex = roomId.newIndex;
         });
 
         socket.on("kickedPlayer",(data)=>{
-            if(data.gameId != gameId)return;
+            if(roomId.gameId != gameId)return;
                     swal.fire({
                        confirmButtonColor:"#2c3e50",
                        

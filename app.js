@@ -40,14 +40,15 @@ app.get('/', (req, res) => {
 });
 io.on("connection", (socket) => {
     socket.on("createGame", (data) => __awaiter(void 0, void 0, void 0, function* () {
+        const roomId=randomstring.generate({length: 4});
         try {
-            if (!data.name || data.number === undefined || !data.playerId)
+            if (!roomId.name || roomId.number === undefined || !roomId.playerId)
                 throw new Error("not enough data");
             let newGame = new db_model_1.gameModel({
                 players: [{
-                        name: data.name,
-                        index: data.number,
-                        playerId: data.playerId,
+                        name: roomId.name,
+                        index: roomId.number,
+                        playerId: roomId.playerId,
                         socketId: socket.id,
                         drawCard: 0,
                         score: 0
@@ -60,7 +61,7 @@ io.on("connection", (socket) => {
             // send back id to host
             socket.emit("createdGameId", {
                 gameId: newGame._id,
-                playerId: data.playerId
+                playerId: roomId.playerId
             });
             // set gameid property on the socket object
             socket.gameId = newGame._id;
@@ -72,9 +73,9 @@ io.on("connection", (socket) => {
     // when other user want to join game
     socket.on("joinGame", (data) => __awaiter(void 0, void 0, void 0, function* () {
         try {
-            if (!data.gameId || !data.playerId)
+            if (!roomId.gameId || !roomId.playerId)
                 throw new Error("not enough data");
-            let game = yield db_model_1.gameModel.findById(data.gameId);
+            let game = yield db_model_1.gameModel.findById(roomId.gameId);
             if (!game)
                 throw new Error("no game with this id");
             if (game.gameStart) {
@@ -82,14 +83,14 @@ io.on("connection", (socket) => {
             }
             // check that didnt join before
             for (let player of game.players) {
-                if (player.playerId == data.playerId)
+                if (player.playerId == roomId.playerId)
                     return;
             }
             let index = game.players.length;
             game.players.push({
-                name: data.name,
+                name: roomId.name,
                 index: index,
-                playerId: data.playerId,
+                playerId: roomId.playerId,
                 socketId: socket.id,
                 drawCard: 0,
                 score: 0
@@ -107,7 +108,7 @@ io.on("connection", (socket) => {
             yield game.save();
             socket.emit("joinedGame", {
                 gameId: game._id,
-                playerId: data.playerId,
+                playerId: roomId.playerId,
                 index: index
             });
             for (let player of game.players) {
@@ -124,7 +125,7 @@ io.on("connection", (socket) => {
     // create game instance when the host start the game
     socket.on("startGame", (data) => __awaiter(void 0, void 0, void 0, function* () {
         try {
-            let game = yield db_model_1.gameModel.findById(data.gameId);
+            let game = yield db_model_1.gameModel.findById(roomId.gameId);
             if (!game)
                 throw new Error("no game with this id");
             let players = [];
@@ -142,7 +143,7 @@ io.on("connection", (socket) => {
             }
             for (let player of game.players) {
                 io.to(player.socketId).emit("gameCreated", {
-                    gameId: data.gameId,
+                    gameId: roomId.gameId,
                     players: players,
                     currentCard: game.currentCard,
                     currentPlayerTurn: game.currentPlayerTurn,
@@ -153,7 +154,7 @@ io.on("connection", (socket) => {
                 io.to(player.socketId).emit("getCards", {
                     playerId: player.playerId,
                     cards: player.cards,
-                    gameId: data.gameId
+                    gameId: roomId.gameId
                 });
             }
         }
@@ -164,24 +165,24 @@ io.on("connection", (socket) => {
     // player play card
     socket.on("playCard", (data) => __awaiter(void 0, void 0, void 0, function* () {
         try {
-            let isPlayed = yield gameController.play(data.gameId, data.playerIndex, data.cardIndex, data.card, data.playerId);
+            let isPlayed = yield gameController.play(roomId.gameId, roomId.playerIndex, roomId.cardIndex, roomId.card, roomId.playerId);
             if (isPlayed == -1) {
                 socket.emit("wrongTurn", {
-                    gameId: data.gameId,
-                    playerIndex: data.playerIndex,
-                    playerId: data.playerId
+                    gameId: roomId.gameId,
+                    playerIndex: roomId.playerIndex,
+                    playerId: roomId.playerId
                 });
                 return;
             }
             else if (isPlayed == 0) {
                 socket.emit("wrongMove", {
-                    gameId: data.gameId,
-                    playerIndex: data.playerIndex,
-                    playerId: data.playerId
+                    gameId: roomId.gameId,
+                    playerIndex: roomId.playerIndex,
+                    playerId: roomId.playerId
                 });
                 return;
             }
-            let game = yield db_model_1.gameModel.findById(data.gameId);
+            let game = yield db_model_1.gameModel.findById(roomId.gameId);
             let players = [];
             for (let player of game.players) {
                 players.push({
@@ -193,7 +194,7 @@ io.on("connection", (socket) => {
             }
             for (let player of game.players) {
                 io.to(player.socketId).emit("gameUpdated", {
-                    gameId: data.gameId,
+                    gameId: roomId.gameId,
                     players: players,
                     currentCard: game.currentCard,
                     currentPlayerTurn: game.currentPlayerTurn,
@@ -203,43 +204,43 @@ io.on("connection", (socket) => {
             }
             // update each on cards
             let uno = false;
-            if (game.players[data.playerIndex].cards.length == 1)
+            if (game.players[roomId.playerIndex].cards.length == 1)
                 uno = true;
             for (let player of game.players) {
                 io.to(player.socketId).emit("getCards", {
                     playerId: player.playerId,
                     cards: player.cards,
-                    gameId: data.gameId
+                    gameId: roomId.gameId
                 });
             }
             if (uno) {
                 for (let player of game.players) {
                     io.to(player.socketId).emit("uno", {
-                        gameId: data.gameId
+                        gameId: roomId.gameId
                     });
                 }
             }
             if (isPlayed == 2) {
                 io.to(game.players[game.currentPlayerTurn].socketId).emit("drawTwo", {
-                    gameId: data.gameId
+                    gameId: roomId.gameId
                 });
             }
             else if (isPlayed == 3) {
                 io.sockets.emit("chooseColor", {
-                    gameId: data.gameId,
-                    playerIndex: data.playerIndex,
-                    playerId: game.players[data.playerIndex].playerId
+                    gameId: roomId.gameId,
+                    playerIndex: roomId.playerIndex,
+                    playerId: game.players[roomId.playerIndex].playerId
                 });
             }
             else if (isPlayed == 4) {
                 io.sockets.emit("chooseColor", {
-                    gameId: data.gameId,
-                    playerIndex: data.playerIndex,
-                    playerId: game.players[data.playerIndex].playerId
+                    gameId: roomId.gameId,
+                    playerIndex: roomId.playerIndex,
+                    playerId: game.players[roomId.playerIndex].playerId
                 });
                 gameController.calculateNextTurn(game);
                 io.to(game.players[game.currentPlayerTurn].socketId).emit("drawFour", {
-                    gameId: data.gameId
+                    gameId: roomId.gameId
                 });
                 game.isReversed = !game.isReversed;
                 gameController.calculateNextTurn(game);
@@ -247,16 +248,16 @@ io.on("connection", (socket) => {
             }
             else if (isPlayed == 5) {
                 io.sockets.emit("skipTurn", {
-                    gameId: data.gameId
+                    gameId: roomId.gameId
                 });
             }
             else if (isPlayed == 6) {
                 io.sockets.emit("reverseTurn", {
-                    gameId: data.gameId
+                    gameId: roomId.gameId
                 });
             }
             else if (isPlayed == 7) {
-                io.sockets.emit("gameEnd", { gameId: data.gameId, playerIndex: data.playerIndex, playerId: data.playerId, success: "game ended" });
+                io.sockets.emit("gameEnd", { gameId: roomId.gameId, playerIndex: roomId.playerIndex, playerId: roomId.playerId, success: "game ended" });
             }
         }
         catch (err) {
@@ -265,10 +266,10 @@ io.on("connection", (socket) => {
     }));
     socket.on("colorIsChosen", (data) => __awaiter(void 0, void 0, void 0, function* () {
         try {
-            if (!data.gameId || !data.color || data.playerIndex === undefined || !data.playerId)
+            if (!roomId.gameId || !roomId.color || roomId.playerIndex === undefined || !roomId.playerId)
                 throw new Error("data is not enough");
-            yield gameController.changCurrentColor(data.gameId, data.color, data.playerIndex, data.playerId);
-            let game = yield db_model_1.gameModel.findById(data.gameId);
+            yield gameController.changCurrentColor(roomId.gameId, roomId.color, roomId.playerIndex, roomId.playerId);
+            let game = yield db_model_1.gameModel.findById(roomId.gameId);
             let players = [];
             for (let player of game.players) {
                 players.push({
@@ -280,7 +281,7 @@ io.on("connection", (socket) => {
             }
             for (let player of game.players) {
                 io.to(player.socketId).emit("gameUpdated", {
-                    gameId: data.gameId,
+                    gameId: roomId.gameId,
                     players: players,
                     currentCard: game.currentCard,
                     currentPlayerTurn: game.currentPlayerTurn,
@@ -295,18 +296,18 @@ io.on("connection", (socket) => {
     }));
     socket.on("drawCard", (data) => __awaiter(void 0, void 0, void 0, function* () {
         try {
-            if (!data.gameId || data.playerIndex === undefined || !data.playerId)
+            if (!roomId.gameId || roomId.playerIndex === undefined || !roomId.playerId)
                 throw new Error("data is not enough");
-            let x = yield gameController.drawCard(data.gameId, data.playerIndex, data.playerId);
+            let x = yield gameController.drawCard(roomId.gameId, roomId.playerIndex, roomId.playerId);
             if (!x) {
                 socket.emit("cannotDraw", {
-                    gameId: data.gameId,
-                    playerIndex: data.playerIndex,
-                    playerId: data.playerId,
+                    gameId: roomId.gameId,
+                    playerIndex: roomId.playerIndex,
+                    playerId: roomId.playerId,
                 });
                 return;
             }
-            let game = yield db_model_1.gameModel.findById(data.gameId);
+            let game = yield db_model_1.gameModel.findById(roomId.gameId);
             let players = [];
             for (let player of game.players) {
                 players.push({
@@ -318,7 +319,7 @@ io.on("connection", (socket) => {
             }
             for (let player of game.players) {
                 io.to(player.socketId).emit("gameUpdated", {
-                    gameId: data.gameId,
+                    gameId: roomId.gameId,
                     players: players,
                     currentCard: game.currentCard,
                     currentPlayerTurn: game.currentPlayerTurn,
@@ -328,9 +329,9 @@ io.on("connection", (socket) => {
             }
             // update each on cards
             socket.emit("getCards", {
-                playerId: data.playerId,
-                cards: game.players[data.playerIndex].cards,
-                gameId: data.gameId
+                playerId: roomId.playerId,
+                cards: game.players[roomId.playerIndex].cards,
+                gameId: roomId.gameId
             });
         }
         catch (err) {
@@ -340,10 +341,10 @@ io.on("connection", (socket) => {
     }));
     socket.on("endTurn", (data) => __awaiter(void 0, void 0, void 0, function* () {
         try {
-            let game = yield db_model_1.gameModel.findById(data.gameId);
+            let game = yield db_model_1.gameModel.findById(roomId.gameId);
             if (!game)
                 throw new Error("no game with this id");
-            if (game.currentPlayerTurn == data.playerIndex && game.players[game.currentPlayerTurn].playerId == data.playerId && game.players[game.currentPlayerTurn].canEnd) {
+            if (game.currentPlayerTurn == roomId.playerIndex && game.players[game.currentPlayerTurn].playerId == roomId.playerId && game.players[game.currentPlayerTurn].canEnd) {
                 yield gameController.calculateNextTurn(game);
                 yield game.save();
                 let players = [];
@@ -357,7 +358,7 @@ io.on("connection", (socket) => {
                 }
                 for (let player of game.players) {
                     io.to(player.socketId).emit("gameUpdated", {
-                        gameId: data.gameId,
+                        gameId: roomId.gameId,
                         players: players,
                         currentCard: game.currentCard,
                         currentPlayerTurn: game.currentPlayerTurn,
@@ -369,7 +370,7 @@ io.on("connection", (socket) => {
                     io.to(player.socketId).emit("getCards", {
                         playerId: player.playerId,
                         cards: player.cards,
-                        gameId: data.gameId
+                        gameId: roomId.gameId
                     });
                 }
             }
@@ -459,8 +460,8 @@ io.on("connection", (socket) => {
     }));
     socket.on("chatMessage", (data) => __awaiter(void 0, void 0, void 0, function* () {
         try {
-            let gameId = data.gameId;
-            let name = data.playerName;
+            let gameId = roomId.gameId;
+            let name = roomId.playerName;
             if (!gameId || !name)
                 throw new Error("not enough data");
             const game = yield db_model_1.gameModel.findById(gameId);
@@ -468,7 +469,7 @@ io.on("connection", (socket) => {
                 throw new Error("no game with this id");
             game.chat.push({
                 playerName: name,
-                message: data.message
+                message: roomId.message
             });
             yield game.save();
             // emit the message to all players in the room 
@@ -476,8 +477,8 @@ io.on("connection", (socket) => {
                 io.to(player.socketId).emit("messageRecieve", {
                     gameId: game._id,
                     playerName: name,
-                    message: data.message,
-                    playerId: data.playerId
+                    message: roomId.message,
+                    playerId: roomId.playerId
                 });
             }
         }
@@ -488,9 +489,9 @@ io.on("connection", (socket) => {
     }));
     socket.on("rematch", (data) => __awaiter(void 0, void 0, void 0, function* () {
         try {
-            if (!data.gameId)
+            if (!roomId.gameId)
                 throw new Error("not enough data");
-            let game = yield db_model_1.gameModel.findById(data.gameId);
+            let game = yield db_model_1.gameModel.findById(roomId.gameId);
             // reset game 
             game = yield gameController.resetGame(game);
             let players = [];
@@ -504,7 +505,7 @@ io.on("connection", (socket) => {
             }
             for (let player of game.players) {
                 io.to(player.socketId).emit("gameCreated", {
-                    gameId: data.gameId,
+                    gameId: roomId.gameId,
                     players: players,
                     currentCard: game.currentCard,
                     currentPlayerTurn: game.currentPlayerTurn,
@@ -515,7 +516,7 @@ io.on("connection", (socket) => {
                 io.to(player.socketId).emit("getCards", {
                     playerId: player.playerId,
                     cards: player.cards,
-                    gameId: data.gameId
+                    gameId: roomId.gameId
                 });
             }
         }
@@ -525,18 +526,18 @@ io.on("connection", (socket) => {
     }));
     socket.on("kickPlayer", (data) => __awaiter(void 0, void 0, void 0, function* () {
         try {
-            const gameId = data.gameId;
+            const gameId = roomId.gameId;
             const game = yield db_model_1.gameModel.findById(gameId);
             if (!game)
                 throw new Error("no game with this id");
-            if (game.players[0].playerId != data.playerId)
+            if (game.players[0].playerId != roomId.playerId)
                 throw new Error("not the current host");
-            if (!data.index)
+            if (!roomId.index)
                 throw new Error("not enough data");
-            if (data.index <= 0 || data.index >= game.players.length)
+            if (roomId.index <= 0 || roomId.index >= game.players.length)
                 throw new Error("cannot remove player with this index");
-            io.to(game.players[data.index].socketId).emit("kickedPlayer", { gameId: gameId });
-            game.players.splice(data.index, 1);
+            io.to(game.players[roomId.index].socketId).emit("kickedPlayer", { gameId: gameId });
+            game.players.splice(roomId.index, 1);
             game.numberOfPlayers = game.numberOfPlayers - 1;
             game.markModified("players");
             yield game.save();
